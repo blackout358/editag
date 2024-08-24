@@ -46,6 +46,7 @@ impl Track {
         match &self.file_path {
             Some(path) => {
                 let mut tag = id3::Tag::read_from_path(path).expect("Error reading mp3 tag");
+                // println!("{:?}", tag);
                 if let Some(image_path) = &self.album_art {
                     let image = ImageReader::open(image_path)
                         .expect("Error opening Album art")
@@ -60,15 +61,22 @@ impl Track {
                         .write_to(&mut raw_image, image::ImageFormat::Jpeg)
                         .unwrap();
 
+                    let apic_frames = tag.remove("APIC");
+                    let frames = tag.remove("PIC");
+
+                    // println!("{:?} ::: {:?}", apic_frames, frames);
+                    let first_picture = tag.pictures().next();
+
+                    println!("REMOVED FRAMES");
+
+                    tag.remove_all_pictures();
                     tag.add_frame(id3::frame::Picture {
                         mime_type: "image/jpeg".to_string(),
                         picture_type: id3::frame::PictureType::CoverFront,
-                        description: String::new(),
+                        description: String::from("Cover Art"),
                         data: raw_image.into_inner(),
                     });
-
                     let res = tag.write_to_path(path, id3::Version::Id3v23);
-                    println!("{:?}", res);
                 }
                 if let Some(title) = &self.title {
                     tag.set_title(title.as_str());
@@ -92,7 +100,7 @@ impl Track {
                     tag.set_track(*track_number as u32);
                 }
                 let res = tag.write_to_path(path, id3::Version::Id3v23);
-                println!("{:?}", res);
+                // println!("{:?}", res);
             }
             None => {}
         }
