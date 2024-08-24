@@ -1,0 +1,12 @@
+[package]
+name = "editag"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+audiotags = "0.5.0"
+clap = { version = "4.5.16", features = ["derive", "cargo"] }
+id3 = "1.14.0"
+image = "0.25.2"
+serde = { version = "1.0.208", features = ["derive"] }
+serde_json = "1.0.117"
