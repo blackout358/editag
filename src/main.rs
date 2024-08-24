@@ -6,8 +6,6 @@ use models::track::Track;
 use serde_json::Value;
 
 fn build_track(matches: &ArgMatches) -> Track {
-    // let filePath = PathBuf::new();
-    // filePath.push("./");
     let file_path: Option<PathBuf> = match matches.get_one::<String>("file_path") {
         Some(name) => Some([r"./", name].iter().collect()),
         None => None,
@@ -17,12 +15,6 @@ fn build_track(matches: &ArgMatches) -> Track {
         Some(name) => Some([r"./", name].iter().collect()),
         None => None,
     };
-
-    // let tmp: Option<i32> = Some(match matches.get_one::<i32>("year").cloned() {
-    //     Some(val) => Some(val.parse().unwrap()),
-    //     None => None,
-    // });
-
     let ts = Track::new(
         file_path,
         matches.get_one::<String>("title").cloned(),
@@ -37,7 +29,6 @@ fn build_track(matches: &ArgMatches) -> Track {
 }
 
 fn apply_tags(music_track: &Track) -> () {
-    // let val = music_track.to_string
     let json = serde_json::to_string(music_track).unwrap();
     let val: Value = serde_json::from_str(&json).unwrap();
 
@@ -49,11 +40,10 @@ fn apply_tags(music_track: &Track) -> () {
             }
         }
     }
-    // println!("{}", val);
 }
 
 fn main() {
-    let matches = command!() // requires `cargo` feature
+    let matches = command!()
         .arg(Arg::new("file_path").action(ArgAction::Set))
         .arg(
             Arg::new("title")
@@ -101,24 +91,8 @@ fn main() {
         )
         .get_matches();
 
-    // println!("FILE NAME: {:?}", matches.get_one::<String>("FILE"));
-    // println!(
-    //     "Album: {}",
-    //     match matches.get_one::<String>("album") {
-    //         Some(val) => val,
-    //         None => "INVALID ALBUM NAME",
-    //     }
-    // );
-
     let music_track = build_track(&matches);
-
-    // println!("{:?}", build_track(&matches));
-
     apply_tags(&music_track);
 
     music_track.update_track();
-
-    // let ts = Track {
-    //     file_name: "hello".to_string(),
-    // };
 }
