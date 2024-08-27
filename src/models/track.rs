@@ -1,12 +1,9 @@
-use std::{clone, fs, path::PathBuf, process};
-
-use serde::{Deserialize, Serialize};
+use std::{fs, path::PathBuf};
 
 use id3::TagLike;
 use image::ImageReader;
 use std::io::Cursor;
 
-// #[derive(Serialize, Deserialize, Debug)]
 #[derive(Debug)]
 pub struct Track {
     pub tag: Option<id3::Tag>,
@@ -93,14 +90,11 @@ impl Track {
                     );
 
                     let _res = fs::rename(p, new.clone());
-                    // self.file_path = Some(PathBuf::from(new));
                     self.update_path(Some(PathBuf::from(new)));
                 }
             }
 
             if self.delete_all {
-                // let frames = tag.clone().frames.clone();
-                // let
                 let tag_clone = tag.clone();
                 let frames = tag_clone.frames();
                 for frame in frames {
@@ -206,11 +200,11 @@ impl Track {
                 println!("Missing arguements, use 'editag --help' for help ");
             }
         } else {
-            println!("Invalid file");
+            println!("Invalid file, use 'editag --help' for help  ");
         }
     }
 
-    pub fn check_dispaly(&self) {
+    pub fn check_display(&self) {
         if self.show_details {
             match &self.tag {
                 Some(tag) => {
@@ -240,8 +234,6 @@ impl Track {
 
 fn process_image(image_path: &PathBuf) -> Result<image::DynamicImage, image::ImageError> {
     let image = ImageReader::open(image_path);
-
-    // if let Some(im) = image {}
     match image {
         Ok(im) => {
             let fo = im.with_guessed_format();
@@ -258,7 +250,6 @@ fn process_image(image_path: &PathBuf) -> Result<image::DynamicImage, image::Ima
         }
         Err(e) => {
             println!("Error opening image :: {}", e);
-            // process::exit(1);
             return Err(image::ImageError::IoError(e));
         }
     }

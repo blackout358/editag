@@ -68,7 +68,6 @@ impl MyParser {
             )
             .arg(
                 Arg::new("list-genres")
-                    // .short('d')
                     .long("list-genres")
                     .help("Lists genres and their associated number for ID3")
                     .action(ArgAction::SetTrue),
@@ -96,14 +95,12 @@ impl MyParser {
             )
             .arg(
                 Arg::new("v23")
-                    // .short('f')
                     .long("v23")
                     .help("Attempts to save tag as ID3v2.3 instead of ID3v2.4")
                     .action(ArgAction::SetTrue),
             )
             .arg(
                 Arg::new("v22")
-                    // .short('f')
                     .long("v22")
                     .help("Attempts to save tag as ID3v2.2 instead of ID3v2.4\n")
                     .action(ArgAction::SetTrue),
@@ -117,13 +114,10 @@ impl MyParser {
         let file_path: Option<PathBuf> = match matches.get_one::<String>("file_path") {
             Some(name) => {
                 let path: PathBuf = [r"./", name].iter().collect();
-                // tag = Some(id3::Tag::read_from_path(&path).unwrap()?);
-
                 match id3::Tag::read_from_path(&path) {
                     Ok(t) => tag = Some(t),
                     Err(e) => println!("Error occured when opening id3 tag :: {}", e),
                 }
-                // tag.unwrap();
                 Some(path)
             }
             None => None,
@@ -373,10 +367,8 @@ impl MyParser {
                 ];
                 let offset = 191 / 2 + 1;
                 for (pos, _) in genres[..offset].iter().enumerate() {
-                    // println!("{} {}", pos, pos + offset);
                     let mut str = String::new();
                     if pos < offset {
-                        // format!("{0: <25}", genres[pos]).as_str()
                         str.push_str(format!("{0: <25}", genres[pos]).as_str());
                     }
                     if pos * 2 < genres.len() {
@@ -386,7 +378,6 @@ impl MyParser {
                 }
             }
         }
-        // matches.
 
         ts
     }
