@@ -1,4 +1,4 @@
-use std::{clone, path::PathBuf};
+use std::{clone, fs, path::PathBuf, process};
 
 use serde::{Deserialize, Serialize};
 
@@ -18,7 +18,11 @@ pub struct Track {
     pub track_number: Option<i32>,
     pub genre: Option<String>,
     pub album_art: Option<PathBuf>,
+    pub to_delete: Option<String>,
+    pub delete_all: bool,
     pub show_details: bool,
+    pub format_file: bool,
+    pub version: id3::Version,
 }
 
 impl Track {
@@ -31,6 +35,7 @@ impl Track {
         year: Option<i32>,
         track_number: Option<i32>,
         genre: Option<String>,
+        to_delete: Option<String>,
         album_art: Option<PathBuf>,
     ) -> Self {
         Track {
@@ -43,40 +48,91 @@ impl Track {
             track_number,
             genre,
             album_art,
+            to_delete,
             show_details: false,
+            delete_all: false,
+            format_file: false,
+            version: id3::Version::Id3v24,
         }
     }
     pub fn show_details(&mut self) {
         self.show_details = true;
     }
 
-    pub fn update_track(&self) {
+    pub fn delete_all(&mut self) {
+        self.delete_all = true;
+    }
+
+    pub fn format_file(&mut self) {
+        self.format_file = true;
+    }
+
+    pub fn update_path(&mut self, new_path: Option<PathBuf>) {
+        self.file_path = new_path;
+    }
+
+    pub fn update_track(&mut self) {
         if let Some(mut tag) = self.tag.clone() {
             let mut wrote: i32 = 0;
-            if let Some(image_path) = &self.album_art {
-                let image = ImageReader::open(image_path)
-                    .expect("Error opening Album art")
-                    .with_guessed_format()
-                    .expect("Error guessing format")
-                    .decode()
-                    .expect("Error decoding image");
 
-                let mut raw_image = Cursor::new(Vec::new());
+            if self.format_file {
+                let tn = tag.track();
+                let tt = tag.title();
 
-                image
-                    .write_to(&mut raw_image, image::ImageFormat::Jpeg)
-                    .unwrap();
-                let first_picture = tag.pictures().next();
+                if let (Some(n), Some(t)) = (tn, tt) {
+                    let p = self.file_path.as_ref().unwrap();
+                    let str_p = p.to_str().unwrap();
+                    let index = str_p.rfind('/').unwrap();
+                    let file_format = str_p.rfind('.').unwrap();
+                    let new = format!(
+                        "{}/{:0>2} - {}{}",
+                        &str_p[..index],
+                        n,
+                        t,
+                        &str_p[file_format..]
+                    );
 
-                tag.remove_all_pictures();
-                tag.add_frame(id3::frame::Picture {
-                    mime_type: "image/jpeg".to_string(),
-                    picture_type: id3::frame::PictureType::CoverFront,
-                    description: String::from("Cover Art"),
-                    data: raw_image.into_inner(),
-                });
+                    let _res = fs::rename(p, new.clone());
+                    // self.file_path = Some(PathBuf::from(new));
+                    self.update_path(Some(PathBuf::from(new)));
+                }
+            }
+
+            if self.delete_all {
+                // let frames = tag.clone().frames.clone();
+                // let
+                let tag_clone = tag.clone();
+                let frames = tag_clone.frames();
+                for frame in frames {
+                    tag.remove(frame.id());
+                    println!("DELETED {}", frame.id());
+                }
                 wrote += 1;
-                println!("Updated image");
+            }
+
+            if let Some(image_path) = &self.album_art {
+                let image = process_image(image_path);
+
+                match image {
+                    Ok(image) => {
+                        let mut raw_image = Cursor::new(Vec::new());
+
+                        image
+                            .write_to(&mut raw_image, image::ImageFormat::Jpeg)
+                            .unwrap();
+
+                        tag.remove_all_pictures();
+                        tag.add_frame(id3::frame::Picture {
+                            mime_type: "image/jpeg".to_string(),
+                            picture_type: id3::frame::PictureType::CoverFront,
+                            description: String::from("Cover Art"),
+                            data: raw_image.into_inner(),
+                        });
+                        wrote += 1;
+                        println!("Updated image");
+                    }
+                    Err(err) => println!("Error setting album art :: {}", err),
+                }
             }
 
             if let Some(title) = &self.title {
@@ -108,7 +164,7 @@ impl Track {
                 tag.set_year(*year);
                 println!(
                     "Set year successfully: {:?}",
-                    tag.year().expect("{Error setting year}")
+                    tag.year().expect("{Error getting set year}")
                 );
                 wrote += 1;
             }
@@ -117,7 +173,7 @@ impl Track {
                 tag.set_genre(genre.as_str());
                 println!(
                     "Set year successfully: {:?}",
-                    tag.genre().expect("{Error setting genre}")
+                    tag.genre().expect("{Error getting set genre}")
                 );
                 wrote += 1;
             }
@@ -126,17 +182,31 @@ impl Track {
                 tag.set_track(*track_number as u32);
                 println!(
                     "Set track number successfully: {:?}",
-                    tag.track().expect("{Error setting track number}")
+                    tag.track().expect("{Error getting set track number}")
                 );
                 wrote += 1;
-
-                if wrote > 0 {
-                    let _res =
-                        tag.write_to_path(self.file_path.as_ref().unwrap(), id3::Version::Id3v24);
-
-                    println!("Wrote tag to file {:?}", self.file_path.as_ref().unwrap());
-                }
             }
+            if let Some(to_delete) = &self.to_delete {
+                let frames = tag.remove(to_delete);
+
+                for frame in frames {
+                    println!("Deleted: {}, Containing: {}", frame.id(), frame.content());
+                }
+                wrote += 1;
+            }
+
+            if wrote > 0 {
+                let _res = tag.write_to_path(self.file_path.as_ref().unwrap(), self.version);
+
+                match _res {
+                    Ok(_) => println!("Wrote tag to file {:?}", self.file_path.as_ref().unwrap()),
+                    Err(e) => println!("Error saving tag to file :: {}", e),
+                }
+            } else {
+                println!("Missing arguements, use 'editag --help' for help ");
+            }
+        } else {
+            println!("Invalid file");
         }
     }
 
@@ -164,6 +234,32 @@ impl Track {
                 }
                 None => println!("Invalid id3 tag"),
             }
+        }
+    }
+}
+
+fn process_image(image_path: &PathBuf) -> Result<image::DynamicImage, image::ImageError> {
+    let image = ImageReader::open(image_path);
+
+    // if let Some(im) = image {}
+    match image {
+        Ok(im) => {
+            let fo = im.with_guessed_format();
+            match fo {
+                Ok(de) => {
+                    let out = de.decode();
+                    return out;
+                }
+                Err(err) => {
+                    println!("Error guessing format");
+                    return Err(image::ImageError::IoError(err));
+                }
+            }
+        }
+        Err(e) => {
+            println!("Error opening image :: {}", e);
+            // process::exit(1);
+            return Err(image::ImageError::IoError(e));
         }
     }
 }
