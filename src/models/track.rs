@@ -64,7 +64,7 @@ impl Track {
         self.format_file = true;
     }
 
-    pub fn update_path(&mut self, new_path: Option<PathBuf>) {
+    pub fn set_path(&mut self, new_path: Option<PathBuf>) {
         self.file_path = new_path;
     }
 
@@ -90,7 +90,16 @@ impl Track {
                     );
 
                     let _res = fs::rename(p, new.clone());
-                    self.update_path(Some(PathBuf::from(new)));
+                    self.set_path(Some(PathBuf::from(&new)));
+                    println!("Successfully formatted file :: {}", new);
+                } else {
+                    if tn == None {
+                        println!("Missing track number");
+                    }
+                    if tt == None {
+                        println!("Missing track title");
+                    }
+                    println!();
                 }
             }
 
@@ -166,7 +175,7 @@ impl Track {
             if let Some(genre) = &self.genre {
                 tag.set_genre(genre.as_str());
                 println!(
-                    "Set year successfully: {:?}",
+                    "Set genre successfully: {:?}",
                     tag.genre().expect("{Error getting set genre}")
                 );
                 wrote += 1;
