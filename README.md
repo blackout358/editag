@@ -1,5 +1,7 @@
 ID3 editor for mp3 files written in Rust
 
+use `cargo build --release` to compile
+
 ```
 Usage: editag [OPTIONS] [file_path]
 
