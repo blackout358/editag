@@ -1,6 +1,6 @@
 use std::{fs, path::PathBuf};
 
-use id3::TagLike;
+use id3::{TagLike, Timestamp};
 use image::ImageReader;
 use std::io::Cursor;
 
@@ -164,11 +164,19 @@ impl Track {
                 wrote += 1;
             }
             if let Some(year) = &self.year {
-                tag.set_year(*year);
-                println!(
-                    "Set year successfully: {:?}",
-                    tag.year().expect("{Error getting set year}")
-                );
+                if self.version == id3::Version::Id3v24 {
+                    tag.set_date_recorded(Timestamp { year: *year, month: None, day: None, hour: None, minute: None, second: None });
+                    println!(
+                        "Set year successfully: {:?}",
+                        tag.date_recorded().expect("{Error getting set year}").year
+                    );
+                } else {
+                    tag.set_year(*year);
+                    println!(
+                        "Set year successfully: {:?}",
+                        tag.year().expect("{Error getting set year}")
+                    );
+                }
                 wrote += 1;
             }
 
@@ -206,7 +214,7 @@ impl Track {
                     Err(e) => println!("Error saving tag to file :: {}", e),
                 }
             } else {
-                println!("Missing arguements, use 'editag --help' for help ");
+                println!("Missing arguments, use 'editag --help' for help ");
             }
         } else {
             println!("Invalid file, use 'editag --help' for help  ");
