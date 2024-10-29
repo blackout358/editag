@@ -71,6 +71,7 @@ impl Track {
     pub fn update_track(&mut self) {
         if let Some(mut tag) = self.tag.clone() {
             let mut wrote: i32 = 0;
+            let mut formatted_file = false;
 
             if self.format_file {
                 let tn = tag.track();
@@ -92,6 +93,7 @@ impl Track {
                     let _res = fs::rename(p, new.clone());
                     self.set_path(Some(PathBuf::from(&new)));
                     println!("Successfully formatted file :: {}", new);
+                    formatted_file = true;
                 } else {
                     if tn == None {
                         println!("Missing track number");
@@ -165,7 +167,14 @@ impl Track {
             }
             if let Some(year) = &self.year {
                 if self.version == id3::Version::Id3v24 {
-                    tag.set_date_recorded(Timestamp { year: *year, month: None, day: None, hour: None, minute: None, second: None });
+                    tag.set_date_recorded(Timestamp {
+                        year: *year,
+                        month: None,
+                        day: None,
+                        hour: None,
+                        minute: None,
+                        second: None,
+                    });
                     println!(
                         "Set year successfully: {:?}",
                         tag.date_recorded().expect("{Error getting set year}").year
@@ -213,7 +222,7 @@ impl Track {
                     Ok(_) => println!("Wrote tag to file {:?}", self.file_path.as_ref().unwrap()),
                     Err(e) => println!("Error saving tag to file :: {}", e),
                 }
-            } else {
+            } else if !formatted_file {
                 println!("Missing arguments, use 'editag --help' for help ");
             }
         } else {
