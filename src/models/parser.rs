@@ -1,6 +1,7 @@
-use std::path::PathBuf;
+use std::{fs, path::PathBuf};
 
 use clap::{command, Arg, ArgAction, ArgMatches};
+use regex::Regex;
 
 pub struct MyParser {}
 
@@ -87,6 +88,13 @@ impl MyParser {
                     .action(ArgAction::SetTrue),
             )
             .arg(
+                Arg::new("recursive")
+                    .short('r')
+                    .long("recursive")
+                    .help("Run command to every mp3 file in the current directory")
+                    .action(ArgAction::SetTrue),
+            )
+            .arg(
                 Arg::new("format-file")
                     .short('f')
                     .long("format-file")
@@ -148,6 +156,12 @@ impl MyParser {
         if let Some(value) = matches.get_one::<bool>("delete-all") {
             if *value {
                 ts.delete_all();
+            }
+        }
+
+        if let Some(value) = matches.get_one::<bool>("recursive") {
+            if *value {
+                ts.set_recursive();
             }
         }
 
@@ -380,5 +394,22 @@ impl MyParser {
         }
 
         ts
+    }
+
+    pub fn get_mp3s_in_dir() -> Vec<PathBuf> {
+        let paths = fs::read_dir("./").unwrap().filter(|s| {
+            let filename = s.as_ref().unwrap().path();
+            let regex = Regex::new(r"(.*\.mp3)").unwrap();
+
+            if regex.is_match(&filename.to_str().unwrap()) {
+                true
+            } else {
+                false
+            }
+        });
+
+        let mut filepaths_buffer_vec: Vec<PathBuf> = Vec::new();
+        paths.for_each(|p| filepaths_buffer_vec.push(p.unwrap().path()));
+        filepaths_buffer_vec
     }
 }

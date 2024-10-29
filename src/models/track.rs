@@ -19,6 +19,7 @@ pub struct Track {
     pub delete_all: bool,
     pub show_details: bool,
     pub format_file: bool,
+    pub recursive: bool,
     pub version: id3::Version,
 }
 
@@ -49,6 +50,7 @@ impl Track {
             show_details: false,
             delete_all: false,
             format_file: false,
+            recursive: false,
             version: id3::Version::Id3v24,
         }
     }
@@ -67,11 +69,49 @@ impl Track {
     pub fn set_path(&mut self, new_path: Option<PathBuf>) {
         self.file_path = new_path;
     }
+    pub fn set_recursive(&mut self) {
+        self.recursive = true;
+    }
+
+    pub fn update_tag(&mut self) {
+        if let Some(path) = &self.file_path {
+            match id3::Tag::read_from_path(&path) {
+                Ok(t) => self.tag = Some(t),
+                Err(e) => println!("Error occured when opening ID3 tag :: {}", e),
+            }
+        }
+    }
 
     pub fn update_track(&mut self) {
         if let Some(mut tag) = self.tag.clone() {
             let mut wrote: i32 = 0;
-            let mut formatted_file = false;
+            let mut actually_i_did_something = false;
+
+            if self.show_details {
+                match &self.tag {
+                    Some(tag) => {
+                        let frames = tag.frames();
+                        println!("{}", tag.version());
+
+                        println!(
+                            "{0: <8} | {1: <40} | {2: <10}",
+                            "Frame ID", "Frame Name", "Frame Content"
+                        );
+                        println!("{:+>9}|{:+>42}|{:+>20}", "", "", "");
+                        for frame in frames {
+                            println!(
+                                "{0: <8} | {1: <40} | {2: <10}",
+                                frame.id(),
+                                frame.name(),
+                                frame.content()
+                            );
+                        }
+                        println!("\n");
+                    }
+                    None => println!("Invalid id3 tag"),
+                }
+                actually_i_did_something = true;
+            }
 
             if self.format_file {
                 let tn = tag.track();
@@ -93,7 +133,7 @@ impl Track {
                     let _res = fs::rename(p, new.clone());
                     self.set_path(Some(PathBuf::from(&new)));
                     println!("Successfully formatted file :: {}", new);
-                    formatted_file = true;
+                    actually_i_did_something = true;
                 } else {
                     if tn == None {
                         println!("Missing track number");
@@ -222,38 +262,11 @@ impl Track {
                     Ok(_) => println!("Wrote tag to file {:?}", self.file_path.as_ref().unwrap()),
                     Err(e) => println!("Error saving tag to file :: {}", e),
                 }
-            } else if !formatted_file {
+            } else if !actually_i_did_something {
                 println!("Missing arguments, use 'editag --help' for help ");
             }
         } else {
             println!("Invalid file, use 'editag --help' for help  ");
-        }
-    }
-
-    pub fn check_display(&self) {
-        if self.show_details {
-            match &self.tag {
-                Some(tag) => {
-                    let frames = tag.frames();
-                    println!("{}", tag.version());
-
-                    println!(
-                        "{0: <8} | {1: <40} | {2: <10}",
-                        "Frame ID", "Frame Name", "Frame Content"
-                    );
-                    println!("{:+>9}|{:+>42}|{:+>20}", "", "", "");
-                    for frame in frames {
-                        println!(
-                            "{0: <8} | {1: <40} | {2: <10}",
-                            frame.id(),
-                            frame.name(),
-                            frame.content()
-                        );
-                    }
-                    println!("\n");
-                }
-                None => println!("Invalid id3 tag"),
-            }
         }
     }
 }
