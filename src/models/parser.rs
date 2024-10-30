@@ -174,14 +174,7 @@ impl MyParser {
             if *value {
                 ts.delete_all();
             }
-        }
-
-        if let Some(value) = matches.get_one::<String>("recursive") {
-            // if *value {
-            //     ts.set_recursive();
-            // }
-            // ts.re
-        }
+        } 
 
         if let Some(value) = matches.get_one::<bool>("format-file") {
             if *value {
