@@ -21,6 +21,7 @@ Options:
       --list-genres                  Lists genres and their associated number for ID3
   -d, --delete-tag <tag-to-delete>   Delete a frame by passing in its id
   -D, --delete-all-tags              Delete all frames
+  -r [<recursive>]                   Run command on every mp3 file in the specified directory or current directory if none is provided. file_path argument is ignored when -r flag is present
   -f, --format-file                  Format file to 'TN - TRACK TITLE' TN = track number
                                      
       --v23                          Attempts to save tag as ID3v2.3 instead of ID3v2.4
@@ -28,5 +29,6 @@ Options:
                                      
   -h, --help                         Print help
   -V, --version                      Print version
+
 
 ```
