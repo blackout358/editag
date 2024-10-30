@@ -19,7 +19,7 @@ pub struct Track {
     pub delete_all: bool,
     pub show_details: bool,
     pub format_file: bool,
-    pub recursive: bool,
+    pub recursive: Option<PathBuf>,
     pub version: id3::Version,
 }
 
@@ -35,6 +35,7 @@ impl Track {
         genre: Option<String>,
         to_delete: Option<String>,
         album_art: Option<PathBuf>,
+        recursive: Option<PathBuf>,
     ) -> Self {
         Track {
             file_path,
@@ -50,7 +51,7 @@ impl Track {
             show_details: false,
             delete_all: false,
             format_file: false,
-            recursive: false,
+            recursive,
             version: id3::Version::Id3v24,
         }
     }
@@ -68,9 +69,6 @@ impl Track {
 
     pub fn set_path(&mut self, new_path: Option<PathBuf>) {
         self.file_path = new_path;
-    }
-    pub fn set_recursive(&mut self) {
-        self.recursive = true;
     }
 
     pub fn update_tag(&mut self) {

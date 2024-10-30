@@ -3,6 +3,8 @@ use std::{fs, path::PathBuf};
 use clap::{command, Arg, ArgAction, ArgMatches};
 use regex::Regex;
 
+use super::track::Track;
+
 pub struct MyParser {}
 
 impl MyParser {
@@ -89,10 +91,9 @@ impl MyParser {
             )
             .arg(
                 Arg::new("recursive")
-                    .short('r')
-                    .long("recursive")
-                    .help("Run command to every mp3 file in the current directory")
-                    .action(ArgAction::SetTrue),
+                    .short('r')  
+                    .help("Run command on every mp3 file in the specified directory or current directory if none is provided")
+                    .action(ArgAction::Set)
             )
             .arg(
                 Arg::new("format-file")
@@ -118,13 +119,28 @@ impl MyParser {
     }
 
     pub fn parse_command(matches: &ArgMatches) -> super::track::Track {
+        let recursive_path = match matches.get_one::<String>("recursive").cloned() {
+            Some(name) => {
+                let path: PathBuf = [r"./", &name].iter().collect(); 
+                Some(path)
+            }
+            None => None,
+        };
+
         let mut tag: Option<id3::Tag> = None;
         let file_path: Option<PathBuf> = match matches.get_one::<String>("file_path") {
             Some(name) => {
-                let path: PathBuf = [r"./", name].iter().collect();
+                let path_string = [r"./", name];
+                let path = path_string.iter().collect();
+                if let None = recursive_path {
+                println!("{:?}", path);
                 match id3::Tag::read_from_path(&path) {
                     Ok(t) => tag = Some(t),
-                    Err(e) => println!("Error occured when opening id3 tag :: {}", e),
+                    Err(e) => println!(
+                        "Error occured when opening id3 tag when reading file path :: {}",
+                        e
+                    ),
+                }
                 }
                 Some(path)
             }
@@ -146,6 +162,7 @@ impl MyParser {
             matches.get_one::<String>("genre").cloned(),
             matches.get_one::<String>("tag-to-delete").cloned(),
             image_path,
+            recursive_path,
         );
 
         if let Some(value) = matches.get_one::<bool>("print") {
@@ -159,10 +176,11 @@ impl MyParser {
             }
         }
 
-        if let Some(value) = matches.get_one::<bool>("recursive") {
-            if *value {
-                ts.set_recursive();
-            }
+        if let Some(value) = matches.get_one::<String>("recursive") {
+            // if *value {
+            //     ts.set_recursive();
+            // }
+            // ts.re
         }
 
         if let Some(value) = matches.get_one::<bool>("format-file") {
@@ -396,20 +414,28 @@ impl MyParser {
         ts
     }
 
-    pub fn get_mp3s_in_dir() -> Vec<PathBuf> {
-        let paths = fs::read_dir("./").unwrap().filter(|s| {
-            let filename = s.as_ref().unwrap().path();
-            let regex = Regex::new(r"(.*\.mp3)").unwrap();
-
-            if regex.is_match(&filename.to_str().unwrap()) {
-                true
-            } else {
-                false
-            }
-        });
-
+    pub fn get_mp3s_in_dir(music_track: &Track) -> Vec<PathBuf> { 
         let mut filepaths_buffer_vec: Vec<PathBuf> = Vec::new();
-        paths.for_each(|p| filepaths_buffer_vec.push(p.unwrap().path()));
+        let paths = fs::read_dir(music_track.recursive.as_ref().unwrap());
+
+        match paths {
+            Ok(dir) => {
+                let filtered_dir = dir.filter(|s| {
+                    let filename = s.as_ref().unwrap().path();
+                    let regex = Regex::new(r"(.*\.mp3)").unwrap();
+
+                    if regex.is_match(&filename.to_str().unwrap()) {
+                        true
+                    } else {
+                        false
+                    }
+                });
+                filtered_dir.for_each(|p| filepaths_buffer_vec.push(p.unwrap().path()));
+            }
+            Err(e) => println!("Error while opening directory :: {}", e),
+        }
+
+        println!("{:?}", filepaths_buffer_vec);
         filepaths_buffer_vec
     }
 }
