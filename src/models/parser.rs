@@ -1,9 +1,7 @@
 use std::{fs, path::PathBuf};
 
 use clap::{command, Arg, ArgAction, ArgMatches};
-use regex::Regex;
-
-use super::track::Track;
+use regex::Regex; 
 
 pub struct MyParser {}
 
@@ -118,7 +116,7 @@ impl MyParser {
         matches
     }
 
-    pub fn parse_command(matches: &ArgMatches) -> super::track::Track { 
+    pub fn parse_command(matches: &ArgMatches) -> (super::track::Track, bool) { 
 
         let mut tag: Option<id3::Tag> = None;
         let file_path: Option<PathBuf> = match matches.get_one::<String>("file_path") {
@@ -185,7 +183,7 @@ impl MyParser {
             }
         }
 
-
+        let mut print_genres = false;
         if let Some(value) = matches.get_one::<bool>("list-genres") {
             if *value {
                 let genres = vec![
@@ -393,13 +391,14 @@ impl MyParser {
                     }
                     println!("{}", str);
                 }
+                print_genres = true;
             }
         }
 
-        ts
+        (ts, print_genres)
     }
 
-    pub fn get_mp3s_in_dir(music_track: &Track) -> Vec<PathBuf> { 
+    pub fn get_mp3s_in_dir() -> Vec<PathBuf> { 
         let mut filepaths_buffer_vec: Vec<PathBuf> = Vec::new();
         let paths = fs::read_dir(PathBuf::from("./"));
 

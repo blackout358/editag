@@ -79,7 +79,7 @@ impl Track {
         }
     }
 
-    pub fn update_track(&mut self) {
+    pub fn update_track(&mut self, print_genre: bool) {
         if let Some(mut tag) = self.tag.clone() {
             let mut wrote: i32 = 0;
             let mut actually_i_did_something = false;
@@ -262,7 +262,7 @@ impl Track {
             } else if !actually_i_did_something {
                 println!("Missing arguments, use 'editag --help' for help ");
             }
-        } else {
+        } else if !print_genre {
             println!("Invalid file, use 'editag --help' for help  ");
         }
     }
