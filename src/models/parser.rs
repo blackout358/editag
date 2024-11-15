@@ -93,7 +93,7 @@ impl MyParser {
                 Arg::new("recursive")
                     .short('r')  
                     .help("Run command on every mp3 file in the specified directory or current directory if none is provided")
-                    .action(ArgAction::Set)
+                    .action(ArgAction::SetTrue)
             )
             .arg(
                 Arg::new("format-file")
@@ -118,29 +118,15 @@ impl MyParser {
         matches
     }
 
-    pub fn parse_command(matches: &ArgMatches) -> super::track::Track {
-        let recursive_path = match matches.get_one::<String>("recursive").cloned() {
-            Some(name) => {
-                let path: PathBuf = [r"./", &name].iter().collect(); 
-                Some(path)
-            }
-            None => None,
-        };
+    pub fn parse_command(matches: &ArgMatches) -> super::track::Track { 
 
         let mut tag: Option<id3::Tag> = None;
         let file_path: Option<PathBuf> = match matches.get_one::<String>("file_path") {
             Some(name) => {
-                let path_string = [r"./", name];
-                let path = path_string.iter().collect();
-                if let None = recursive_path {
-                println!("{:?}", path);
+                let path: PathBuf = [r"./", name].iter().collect();
                 match id3::Tag::read_from_path(&path) {
                     Ok(t) => tag = Some(t),
-                    Err(e) => println!(
-                        "Error occured when opening id3 tag when reading file path :: {}",
-                        e
-                    ),
-                }
+                    Err(e) => println!("Error occured when opening id3 tag :: {}", e),
                 }
                 Some(path)
             }
@@ -161,8 +147,7 @@ impl MyParser {
             matches.get_one::<i32>("track_number").cloned(),
             matches.get_one::<String>("genre").cloned(),
             matches.get_one::<String>("tag-to-delete").cloned(),
-            image_path,
-            recursive_path,
+            image_path, 
         );
 
         if let Some(value) = matches.get_one::<bool>("print") {
@@ -193,6 +178,13 @@ impl MyParser {
                 ts.version = id3::Version::Id3v23;
             }
         }
+
+        if let Some(value) = matches.get_one::<bool>("recursive") {
+            if *value {
+                ts.recursive = true;
+            }
+        }
+
 
         if let Some(value) = matches.get_one::<bool>("list-genres") {
             if *value {
@@ -409,10 +401,11 @@ impl MyParser {
 
     pub fn get_mp3s_in_dir(music_track: &Track) -> Vec<PathBuf> { 
         let mut filepaths_buffer_vec: Vec<PathBuf> = Vec::new();
-        let paths = fs::read_dir(music_track.recursive.as_ref().unwrap());
+        let paths = fs::read_dir(PathBuf::from("./"));
 
         match paths {
             Ok(dir) => {
+                println!("{:?}", dir);
                 let filtered_dir = dir.filter(|s| {
                     let filename = s.as_ref().unwrap().path();
                     let regex = Regex::new(r"(.*\.mp3)").unwrap();
