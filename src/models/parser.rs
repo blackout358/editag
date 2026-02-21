@@ -1,7 +1,7 @@
 use std::{fs, path::PathBuf};
 
 use clap::{command, Arg, ArgAction, ArgMatches};
-use regex::Regex; 
+use regex::Regex;
 
 pub struct MyParser {}
 
@@ -28,6 +28,13 @@ impl MyParser {
                     .short('A')
                     .long("artist")
                     .help("Set the artist")
+                    .action(ArgAction::Set),
+            )
+            .arg(
+                Arg::new("album-artist")
+                    .short('B')
+                    .long("album-artist")
+                    .help("Set the album artist")
                     .action(ArgAction::Set),
             )
             .arg(
@@ -89,7 +96,7 @@ impl MyParser {
             )
             .arg(
                 Arg::new("recursive")
-                    .short('r')  
+                    .short('r')
                     .help("Run command on every mp3 file in the specified directory or current directory if none is provided")
                     .action(ArgAction::SetTrue)
             )
@@ -116,9 +123,9 @@ impl MyParser {
         matches
     }
 
-    pub fn parse_command(matches: &ArgMatches) -> (super::track::Track, bool) { 
-
+    pub fn parse_command(matches: &ArgMatches) -> (super::track::Track, bool) {
         let mut tag: Option<id3::Tag> = None;
+
         let file_path: Option<PathBuf> = match matches.get_one::<String>("file_path") {
             Some(name) => {
                 let path: PathBuf = [r"./", name].iter().collect();
@@ -130,6 +137,7 @@ impl MyParser {
             }
             None => None,
         };
+
         let image_path: Option<PathBuf> = match matches.get_one::<String>("path_to_image") {
             Some(name) => Some([r"./", name].iter().collect()),
             None => None,
@@ -141,11 +149,12 @@ impl MyParser {
             matches.get_one::<String>("title").cloned(),
             matches.get_one::<String>("album").cloned(),
             matches.get_one::<String>("artist").cloned(),
+            matches.get_one::<String>("album-artist").cloned(),
             matches.get_one::<i32>("year").cloned(),
-            matches.get_one::<i32>("track_number").cloned(),
+            matches.get_one::<i32>("track-number").cloned(),
             matches.get_one::<String>("genre").cloned(),
             matches.get_one::<String>("tag-to-delete").cloned(),
-            image_path, 
+            image_path,
         );
 
         if let Some(value) = matches.get_one::<bool>("print") {
@@ -153,11 +162,12 @@ impl MyParser {
                 ts.show_details();
             }
         }
+
         if let Some(value) = matches.get_one::<bool>("delete-all") {
             if *value {
                 ts.delete_all();
             }
-        } 
+        }
 
         if let Some(value) = matches.get_one::<bool>("format-file") {
             if *value {
@@ -398,7 +408,7 @@ impl MyParser {
         (ts, print_genres)
     }
 
-    pub fn get_mp3s_in_dir() -> Vec<PathBuf> { 
+    pub fn get_mp3s_in_dir() -> Vec<PathBuf> {
         let mut filepaths_buffer_vec: Vec<PathBuf> = Vec::new();
         let paths = fs::read_dir(PathBuf::from("./"));
 

@@ -11,6 +11,7 @@ pub struct Track {
     pub title: Option<String>,
     pub album: Option<String>,
     pub artist: Option<String>,
+    pub album_artist: Option<String>,
     pub year: Option<i32>,
     pub track_number: Option<i32>,
     pub genre: Option<String>,
@@ -30,6 +31,7 @@ impl Track {
         title: Option<String>,
         album: Option<String>,
         artist: Option<String>,
+        album_artist: Option<String>,
         year: Option<i32>,
         track_number: Option<i32>,
         genre: Option<String>,
@@ -42,6 +44,7 @@ impl Track {
             title,
             album,
             artist,
+            album_artist,
             year,
             track_number,
             genre,
@@ -185,6 +188,7 @@ impl Track {
                 );
                 wrote += 1;
             }
+
             if let Some(album) = &self.album {
                 tag.set_album(album.as_str());
                 println!(
@@ -202,6 +206,16 @@ impl Track {
                 );
                 wrote += 1;
             }
+
+            if let Some(album_artist) = &self.album_artist {
+                tag.set_album_artist(album_artist.as_str());
+                println!(
+                    "Set album artist successfully: {:?}",
+                    tag.album_artist().expect("{Error setting album artist}")
+                );
+                wrote += 1;
+            }
+
             if let Some(year) = &self.year {
                 if self.version == id3::Version::Id3v24 {
                     tag.set_date_recorded(Timestamp {
@@ -243,6 +257,7 @@ impl Track {
                 );
                 wrote += 1;
             }
+
             if let Some(to_delete) = &self.to_delete {
                 let frames = tag.remove(to_delete);
 
