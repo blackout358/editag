@@ -151,7 +151,7 @@ impl MyParser {
             matches.get_one::<String>("artist").cloned(),
             matches.get_one::<String>("album-artist").cloned(),
             matches.get_one::<i32>("year").cloned(),
-            matches.get_one::<i32>("track-number").cloned(),
+            matches.get_one::<i32>("track_number").cloned(),
             matches.get_one::<String>("genre").cloned(),
             matches.get_one::<String>("tag-to-delete").cloned(),
             image_path,
