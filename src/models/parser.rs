@@ -63,7 +63,7 @@ impl MyParser {
                     .action(ArgAction::Set),
             )
             .arg(
-                Arg::new("path_to_image")
+                Arg::new("cover-art-path")
                     .short('c')
                     .long("cover-art")
                     .help("Set the cover art\n")
@@ -150,7 +150,7 @@ impl MyParser {
         if let Some(v) = matches.get_one::<u32>("track_number") {
             actions.push(ModifyAction::TrackNumber(*v));
         }
-        if let Some(v) = matches.get_one::<String>("cover-art") {
+        if let Some(v) = matches.get_one::<String>("cover-art-path") {
             actions.push(ModifyAction::CoverArt(PathBuf::from(v)));
         }
         if let Some(v) = matches.get_one::<String>("delete-tag") {
