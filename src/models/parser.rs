@@ -121,6 +121,7 @@ impl MyParser {
                     .help("Attempts to save tag as ID3v2.2 instead of ID3v2.4\n")
                     .action(ArgAction::SetTrue),
             )
+            .arg(Arg::new("custom-flag").short('C').long("custom").num_args(2).value_names(["Frame id", "Value"]).help("Set a custom frame and its value"))
             .get_matches();
         matches
     }
@@ -154,6 +155,14 @@ impl MyParser {
         }
         if let Some(v) = matches.get_one::<String>("delete-tag") {
             actions.push(ModifyAction::DeleteTag(v.clone()));
+        }
+        if let Some(mut values) = matches.get_many::<String>("custom-flag") {
+            let frame_id = values.next().unwrap();
+            let frame_content = values.next().unwrap();
+            actions.push(ModifyAction::Custom(
+                frame_id.clone(),
+                frame_content.clone(),
+            ));
         }
 
         let changeset = ChangeSet {
