@@ -39,7 +39,7 @@ Options:
 
 ### Setting basic metadata
 
-```bash
+```
 $ editag Love\ Trip/01\ -\ Love\ Trip.mp3 -y 1982 -A "Takako Mamiya" -a "Love Trip" -n 1 -g "City Pop"
 Set artist successfully: "Takako Mamiya"
 Set album successfully: "Love Trip"
@@ -64,7 +64,7 @@ Processed: "Love Trip/01 - Love Trip.mp3"
 
 ### Setting the cover art
 
-```bash
+```
 $ editag Love\ Trip/01\ -\ Love\ Trip.mp3 -c Love\ Trip/27865162756.jpg
 Cover Art Love Trip/27865162756.jpg
 Updated image
@@ -84,7 +84,7 @@ TRCK     | Track number/Position in set             | 1
 
 ### Setting a custom tag
 
-```bash
+```
 $ editag -C TIT3 "Frogs are kind of cool I guess" Love\ Trip/01\ -\ Love\ Trip.mp3
 No tag found for "Love Trip/01 - Love Trip.mp3", creating a new one
 Saved
@@ -100,7 +100,7 @@ This ONLY supports headers that expect raw text. Anything that expects structure
 will not accept this and the previous header will be destroyed. There is currently no backup or
 copy write implemented in editag.
 
-```bash
+```
 $ editag -C COMM "Frogs are kind of cool I guess" Love\ Trip/01\ -\ Love\ Trip.mp3
 Failed the save "Love Trip/01 - Love Trip.mp3": InvalidInput: Frame with ID COMM and content type Text can not be written as valid ID3
 Saved
