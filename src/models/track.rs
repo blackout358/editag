@@ -4,304 +4,198 @@ use id3::{TagLike, Timestamp};
 use image::ImageReader;
 use std::io::Cursor;
 
+use crate::models::controls::{ChangeSet, ModifyAction};
+
 #[derive(Debug)]
 pub struct Track {
-    pub tag: Option<id3::Tag>,
-    pub file_path: Option<PathBuf>,
-    pub title: Option<String>,
-    pub album: Option<String>,
-    pub artist: Option<String>,
-    pub album_artist: Option<String>,
-    pub year: Option<i32>,
-    pub track_number: Option<i32>,
-    pub genre: Option<String>,
-    pub album_art: Option<PathBuf>,
-    pub to_delete: Option<String>,
-    pub delete_all: bool,
-    pub show_details: bool,
-    pub format_file: bool,
-    pub recursive: bool,
-    pub version: id3::Version,
+    pub tag: id3::Tag,
+    pub path: PathBuf,
 }
 
 impl Track {
-    pub fn new(
-        file_path: Option<PathBuf>,
-        tag: Option<id3::Tag>,
-        title: Option<String>,
-        album: Option<String>,
-        artist: Option<String>,
-        album_artist: Option<String>,
-        year: Option<i32>,
-        track_number: Option<i32>,
-        genre: Option<String>,
-        to_delete: Option<String>,
-        album_art: Option<PathBuf>,
-    ) -> Self {
-        Track {
-            file_path,
-            tag,
-            title,
-            album,
-            artist,
-            album_artist,
-            year,
-            track_number,
-            genre,
-            album_art,
-            to_delete,
-            show_details: false,
-            delete_all: false,
-            format_file: false,
-            recursive: false,
-            version: id3::Version::Id3v24,
+    pub fn load(path: PathBuf) -> Result<Self, String> {
+        let tag = id3::Tag::read_from_path(&path).map_err(|e| {
+            format!(
+                "Error occurred when opening ID3 tag :: {}\nWas the correct file path used?",
+                e
+            )
+        })?;
+        Ok(Track { path, tag })
+    }
+
+    fn set_cover_art(&mut self, img_path: &PathBuf) -> Result<(), String> {
+        let img = ImageReader::open(img_path)
+            .map_err(|e| format!("Error opening image :: {}", e))?
+            .with_guessed_format()
+            .map_err(|e| format!("Error guessing format :: {}", e))?
+            .decode()
+            .map_err(|e| format!("Error decoding image :: {}", e))?;
+
+        let mut raw_image = Cursor::new(Vec::new());
+
+        img.write_to(&mut raw_image, image::ImageFormat::Jpeg)
+            .map_err(|e| format!("Error processing image :: {}", e))?;
+
+        self.tag.remove_all_pictures();
+        self.tag.add_frame(id3::frame::Picture {
+            mime_type: "image/jpeg".to_string(),
+            picture_type: id3::frame::PictureType::CoverFront,
+            description: "Cover Art".to_string(),
+            data: raw_image.into_inner(),
+        });
+
+        Ok(())
+    }
+
+    pub fn format_filename(&mut self) -> Result<(), String> {
+        if let (Some(n), Some(t)) = (self.tag.track(), self.tag.title()) {
+            let parent = self
+                .path
+                .parent()
+                .unwrap_or_else(|| std::path::Path::new(""));
+
+            let ext = self
+                .path
+                .extension()
+                .and_then(|e| e.to_str())
+                .unwrap_or("mp3");
+
+            let new_name = format!("{:0>2} - {}.{}", n, t, ext);
+            let new_path = parent.join(new_name);
+
+            fs::rename(&self.path, &new_path)
+                .map_err(|e| format!("Error renaming file :: {}", e))?;
+            println!("Successfully formatted file :: {:?}", new_path);
+            self.path = new_path;
         }
+        Ok(())
     }
-    pub fn show_details(&mut self) {
-        self.show_details = true;
-    }
+    pub fn print_details(&self) {
+        let mut frames: Vec<_> = self.tag.frames().collect();
+        frames.sort_by(|a, b| a.id().cmp(b.id()));
+        println!("{}", self.tag.version());
 
-    pub fn delete_all(&mut self) {
-        self.delete_all = true;
-    }
-
-    pub fn format_file(&mut self) {
-        self.format_file = true;
-    }
-
-    pub fn set_path(&mut self, new_path: Option<PathBuf>) {
-        self.file_path = new_path;
-    }
-
-    pub fn update_tag(&mut self) {
-        if let Some(path) = &self.file_path {
-            match id3::Tag::read_from_path(&path) {
-                Ok(t) => self.tag = Some(t),
-                Err(e) => println!("Error occured when opening ID3 tag :: {}", e),
-            }
+        println!(
+            "{0: <8} | {1: <40} | {2: <10}",
+            "Frame ID", "Frame Name", "Frame Content"
+        );
+        println!("{:->9}+{:->42}+{:->20}", "", "", "");
+        for frame in frames {
+            println!(
+                "{0: <8} | {1: <40} | {2: <10}",
+                frame.id(),
+                frame.name(),
+                frame.content()
+            );
         }
+        println!("\n");
     }
 
-    pub fn update_track(&mut self, print_genre: bool) {
-        if let Some(mut tag) = self.tag.clone() {
-            let mut wrote: i32 = 0;
-            let mut actually_i_did_something = false;
+    pub fn save(&self, version: id3::Version) -> Result<(), id3::Error> {
+        self.tag.write_to_path(&self.path, version)
+    }
 
-            if self.show_details {
-                match &self.tag {
-                    Some(tag) => {
-                        let frames = tag.frames();
-                        println!("{}", tag.version());
+    pub fn apply(
+        &mut self,
+        change_set: &ChangeSet,
+        version: id3::Version,
+    ) -> Result<bool, Box<dyn std::error::Error>> {
+        let mut wrote = 0;
+        let total_changes = change_set.actions.len()
+            + change_set.delete_all as usize
+            + change_set.format_file as usize;
 
-                        println!(
-                            "{0: <8} | {1: <40} | {2: <10}",
-                            "Frame ID", "Frame Name", "Frame Content"
-                        );
-                        println!("{:+>9}|{:+>42}|{:+>20}", "", "", "");
-                        for frame in frames {
-                            println!(
-                                "{0: <8} | {1: <40} | {2: <10}",
-                                frame.id(),
-                                frame.name(),
-                                frame.content()
-                            );
-                        }
-                        println!("\n");
-                    }
-                    None => println!("Invalid id3 tag"),
-                }
-                actually_i_did_something = true;
+        let mut modified_file = false;
+        let mut printed_details = false;
+
+        if change_set.print_details {
+            self.print_details();
+            printed_details = true
+        }
+
+        if change_set.delete_all {
+            let tag_clone = self.tag.clone();
+            let frames = tag_clone.frames();
+            for frame in frames {
+                self.tag.remove(frame.id());
+                println!("Deleted {}, Containing: {}", frame.id(), frame.content());
             }
-
-            if self.format_file {
-                let tn = tag.track();
-                let tt = tag.title();
-
-                if let (Some(n), Some(t)) = (tn, tt) {
-                    let p = self.file_path.as_ref().unwrap();
-                    let str_p = p.to_str().unwrap();
-                    let index = str_p.rfind('/').unwrap();
-                    let file_format = str_p.rfind('.').unwrap();
-                    let new = format!(
-                        "{}/{:0>2} - {}{}",
-                        &str_p[..index],
-                        n,
-                        t,
-                        &str_p[file_format..]
-                    );
-
-                    let _res = fs::rename(p, new.clone());
-                    self.set_path(Some(PathBuf::from(&new)));
-                    println!("Successfully formatted file :: {}", new);
-                    actually_i_did_something = true;
-                } else {
-                    if tn == None {
-                        println!("Missing track number");
-                    }
-                    if tt == None {
-                        println!("Missing track title");
-                    }
-                    println!();
+            wrote += 1;
+        }
+        for action in &change_set.actions {
+            match action {
+                ModifyAction::Title(s) => {
+                    self.tag.set_title(s);
+                    println!("Set title successfully: {:?}", s);
+                    wrote += 1;
                 }
-            }
 
-            if self.delete_all {
-                let tag_clone = tag.clone();
-                let frames = tag_clone.frames();
-                for frame in frames {
-                    tag.remove(frame.id());
-                    println!("DELETED {}", frame.id());
+                ModifyAction::Album(s) => {
+                    self.tag.set_album(s);
+                    println!("Set album successfully: {:?}", s);
+                    wrote += 1;
                 }
-                wrote += 1;
-            }
 
-            if let Some(image_path) = &self.album_art {
-                let image = process_image(image_path);
+                ModifyAction::Artist(s) => {
+                    self.tag.set_artist(s);
+                    println!("Set artist successfully: {:?}", s);
+                    wrote += 1;
+                }
 
-                match image {
-                    Ok(image) => {
-                        let mut raw_image = Cursor::new(Vec::new());
+                ModifyAction::AlbumArtist(s) => {
+                    self.tag.set_album_artist(s);
+                    println!("Set album artist successfully: {:?}", s);
+                    wrote += 1;
+                }
 
-                        image
-                            .write_to(&mut raw_image, image::ImageFormat::Jpeg)
-                            .unwrap();
-
-                        tag.remove_all_pictures();
-                        tag.add_frame(id3::frame::Picture {
-                            mime_type: "image/jpeg".to_string(),
-                            picture_type: id3::frame::PictureType::CoverFront,
-                            description: String::from("Cover Art"),
-                            data: raw_image.into_inner(),
+                ModifyAction::Year(y) => {
+                    if version == id3::Version::Id3v24 {
+                        self.tag.set_date_recorded(Timestamp {
+                            year: *y,
+                            ..Default::default()
                         });
-                        wrote += 1;
-                        println!("Updated image");
+                    } else {
+                        self.tag.set_year(*y);
                     }
-                    Err(err) => println!("Error setting album art :: {}", err),
+                    println!("Set year successfully: {}", y);
+                    wrote += 1;
                 }
-            }
 
-            if let Some(title) = &self.title {
-                tag.set_title(title.as_str());
-                println!(
-                    "Set title successfully: {:?}",
-                    tag.title().expect("{Error setting title}")
-                );
-                wrote += 1;
-            }
-
-            if let Some(album) = &self.album {
-                tag.set_album(album.as_str());
-                println!(
-                    "Set album successfully: {:?}",
-                    tag.album().expect("{Error setting album}")
-                );
-                wrote += 1;
-            }
-
-            if let Some(artist) = &self.artist {
-                tag.set_artist(artist.as_str());
-                println!(
-                    "Set artist successfully: {:?}",
-                    tag.artist().expect("{Error setting artist}")
-                );
-                wrote += 1;
-            }
-
-            if let Some(album_artist) = &self.album_artist {
-                tag.set_album_artist(album_artist.as_str());
-                println!(
-                    "Set album artist successfully: {:?}",
-                    tag.album_artist().expect("{Error setting album artist}")
-                );
-                wrote += 1;
-            }
-
-            if let Some(year) = &self.year {
-                if self.version == id3::Version::Id3v24 {
-                    tag.set_date_recorded(Timestamp {
-                        year: *year,
-                        month: None,
-                        day: None,
-                        hour: None,
-                        minute: None,
-                        second: None,
-                    });
-                    println!(
-                        "Set year successfully: {:?}",
-                        tag.date_recorded().expect("{Error getting set year}").year
-                    );
-                } else {
-                    tag.set_year(*year);
-                    println!(
-                        "Set year successfully: {:?}",
-                        tag.year().expect("{Error getting set year}")
-                    );
+                ModifyAction::Genre(s) => {
+                    self.tag.set_genre(s);
+                    println!("Set genre successfully: {:?}", s);
+                    wrote += 1;
                 }
-                wrote += 1;
-            }
 
-            if let Some(genre) = &self.genre {
-                tag.set_genre(genre.as_str());
-                println!(
-                    "Set genre successfully: {:?}",
-                    tag.genre().expect("{Error getting set genre}")
-                );
-                wrote += 1;
-            }
-
-            if let Some(track_number) = &self.track_number {
-                tag.set_track(*track_number as u32);
-                println!(
-                    "Set track number successfully: {:?}",
-                    tag.track().expect("{Error getting set track number}")
-                );
-                wrote += 1;
-            }
-
-            if let Some(to_delete) = &self.to_delete {
-                let frames = tag.remove(to_delete);
-
-                for frame in frames {
-                    println!("Deleted: {}, Containing: {}", frame.id(), frame.content());
+                ModifyAction::TrackNumber(n) => {
+                    self.tag.set_track(*n);
+                    println!("Set track number successfully: {:?}", n);
+                    wrote += 1;
                 }
-                wrote += 1;
-            }
 
-            if wrote > 0 {
-                let _res = tag.write_to_path(self.file_path.as_ref().unwrap(), self.version);
-
-                match _res {
-                    Ok(_) => println!("Wrote tag to file {:?}", self.file_path.as_ref().unwrap()),
-                    Err(e) => println!("Error saving tag to file :: {}", e),
+                ModifyAction::DeleteTag(id) => {
+                    let removed = self.tag.remove(id);
+                    for f in removed {
+                        println!("Deleted: {}, Containing: {}", f.id(), f.content());
+                    }
+                    wrote += 1;
                 }
-            } else if !actually_i_did_something {
-                println!("Missing arguments, use 'editag --help' for help ");
-            }
-        } else if !print_genre {
-            println!("Invalid file, use 'editag --help' for help  ");
-        }
-    }
-}
 
-fn process_image(image_path: &PathBuf) -> Result<image::DynamicImage, image::ImageError> {
-    let image = ImageReader::open(image_path);
-    match image {
-        Ok(im) => {
-            let fo = im.with_guessed_format();
-            match fo {
-                Ok(de) => {
-                    let out = de.decode();
-                    return out;
-                }
-                Err(err) => {
-                    println!("Error guessing format");
-                    return Err(image::ImageError::IoError(err));
+                ModifyAction::CoverArt(p) => {
+                    self.set_cover_art(p)?;
+                    println!("Updated image");
+                    wrote += 1;
                 }
             }
         }
-        Err(e) => {
-            println!("Error opening image :: {}", e);
-            return Err(image::ImageError::IoError(e));
+
+        if total_changes == 0 && !printed_details {
+            return Err(Box::from("Missing arguments, use 'editag --help' for help"));
         }
+
+        if wrote > 0 {
+            modified_file = true;
+        }
+        Ok(modified_file)
     }
 }
