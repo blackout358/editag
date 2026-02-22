@@ -14,12 +14,21 @@ pub struct Track {
 
 impl Track {
     pub fn load(path: PathBuf) -> Result<Self, String> {
-        let tag = id3::Tag::read_from_path(&path).map_err(|e| {
-            format!(
-                "Error occurred when opening ID3 tag :: {}\nWas the correct file path used?",
-                e
-            )
-        })?;
+        let tag =
+            match id3::Tag::read_from_path(&path) {
+                Ok(t) => t,
+                Err(id3::Error {
+                    kind: id3::ErrorKind::NoTag,
+                    ..
+                }) => {
+                    println!("No tag found for {:?}, creating a new one", path);
+                    id3::Tag::new()
+                }
+                Err(e) => return Err(format!(
+                    "Error occurred when opening ID3 tag :: {}\nWas the correct file path used?",
+                    e
+                )),
+            };
         Ok(Track { path, tag })
     }
 
@@ -184,6 +193,11 @@ impl Track {
                 ModifyAction::CoverArt(p) => {
                     self.set_cover_art(p)?;
                     println!("Updated image");
+                    wrote += 1;
+                }
+
+                ModifyAction::Custom(tag, content) => {
+                    self.tag.set_text(tag, content);
                     wrote += 1;
                 }
             }
