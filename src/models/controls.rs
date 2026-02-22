@@ -11,6 +11,7 @@ pub enum ModifyAction {
     Genre(String),
     CoverArt(PathBuf),
     DeleteTag(String),
+    Custom(String, String),
 }
 
 pub struct ChangeSet {
