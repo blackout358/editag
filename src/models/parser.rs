@@ -1,7 +1,6 @@
-use std::{fs, path::PathBuf};
+use std::path::PathBuf;
 
 use clap::{command, Arg, ArgAction, ArgMatches};
-use regex::Regex;
 
 use crate::models::controls::{AppConfig, ChangeSet, ModifyAction};
 
